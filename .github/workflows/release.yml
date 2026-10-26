@@ -1,0 +1,25 @@
+name: Publish gag release
+on:
+  push:
+    branches: [main]
+    paths: ['download/gag.apk']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify APK signature
+        run: |
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          $BT/apksigner verify --verbose download/gag.apk
+          $BT/aapt2 dump badging download/gag.apk | grep -E "package:|sdkVersion|targetSdk|application-label:" || true
+      - name: Publish release
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          TAG="v1.0.${{ github.run_number }}"
+          SHA=$(sha256sum download/gag.apk | cut -d' ' -f1)
+          gh release create "$TAG" download/gag.apk --title "gag $TAG" --latest \
+            --notes "Download **gag.apk** below and open it on your Android phone. SHA-256: \`$SHA\`"
